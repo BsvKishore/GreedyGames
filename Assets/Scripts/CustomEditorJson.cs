@@ -7,7 +7,7 @@ using UnityEngine.EventSystems;
 
 public class CustomEditorJson : EditorWindow
 {
-    private string jsonFilePath = "Assets/UIObjectHierarchy.json";
+    private string jsonFilePath = "Assets/ObjectHierarchy.json";
     private int selectedObjectIndex = -1;
     private UIObjectHierarchy hierarchy;
     private List<UIObject> objectList = new List<UIObject>();
@@ -15,28 +15,46 @@ public class CustomEditorJson : EditorWindow
     private Vector2 scrollPosition;
     private bool changesMade = false;
 
-    private GameObject canvas; // Reference to the Canvas where templates will be instantiated
+    private GameObject canvas;
 
     [MenuItem("Window/Custom Editor Json")]
     public static void ShowWindow()
     {
         GetWindow<CustomEditorJson>("Custom Editor Json");
+
     }
 
     private void OnGUI()
     {
         GUILayout.Label("Custom Editor Json", EditorStyles.boldLabel);
-
-        if (GUILayout.Button("Load JSON")) LoadJSON();
-        if (GUILayout.Button("Save JSON")) SaveJSON();
-        if (GUILayout.Button("Delete JSON")) DeleteJSON();
-        if (GUILayout.Button("Instantiate")) InstantiateUIObjects();
-
         EditorGUILayout.Space();
 
+        GUILayout.Label("Current Editor/Selected Editor", EditorStyles.boldLabel);
+        DisplayTemplateCreationSection();
+        EditorGUILayout.Space();
+
+        if (GUILayout.Button("Load JSON"))
+        {
+            LoadJSON();
+        }
+        if (GUILayout.Button("Save JSON"))
+        {
+            SaveJSON();
+        }
+        if (GUILayout.Button("Delete JSON"))
+        {
+            DeleteJSON();
+        }
+        if (GUILayout.Button("Instantiate"))
+        {
+            InstantiateUIObjects();
+        }
+
+        EditorGUILayout.Space();
+        GUILayout.Label("Created Templates", EditorStyles.boldLabel);
         if (objectList != null && hierarchy != null)
         {
-            DisplayTemplateCreationSection();
+            
             EditorGUILayout.Space();
             DisplayUIObjectList();
 
@@ -52,24 +70,38 @@ public class CustomEditorJson : EditorWindow
     {
         if (index >= 0 && index < objectList.Count)
         {
+            // Delete the game object from the Unity hierarchy
+            DeleteGameObjectFromHierarchy(objectList[index].name);
+
             objectList.RemoveAt(index);
             changesMade = false;
+
+            if (hierarchy != null && hierarchy.uiObjects != null)
+            {
+                List<UIObject> hierarchyList = new List<UIObject>(hierarchy.uiObjects);
+                hierarchyList.RemoveAt(index);
+                hierarchy.uiObjects = hierarchyList.ToArray();
+            }
         }
+    }
+
+    private void DeleteGameObjectFromHierarchy(string gameObjectName)
+    {
+        GameObject gameObjectToDelete = GameObject.Find(gameObjectName);
+        if (gameObjectToDelete != null)
+        {
+            DestroyImmediate(gameObjectToDelete);
+        }
+    }
+
+    private bool IsValidIndex(int index)
+    {
+        return index >= 0 && index < objectList.Count;
     }
 
     private void DisplayTemplateCreationSection()
     {
-        newTemplate.name = EditorGUILayout.TextField("Name", newTemplate.name);
-        newTemplate.position = EditorGUILayout.Vector2Field("Position", newTemplate.position);
-        newTemplate.rotation = EditorGUILayout.FloatField("Rotation", newTemplate.rotation);
-        newTemplate.scale = EditorGUILayout.Vector2Field("Scale", newTemplate.scale);
-        newTemplate.color = EditorGUILayout.ColorField("Color", newTemplate.color);
-        newTemplate.texture = (Texture)EditorGUILayout.ObjectField("RawImage Texture", newTemplate.texture, typeof(Texture), false);
-        newTemplate.rawImageEnabled = EditorGUILayout.Toggle("RawImage Enabled", newTemplate.rawImageEnabled);
-        newTemplate.text = EditorGUILayout.TextField("Text", newTemplate.text);
-        newTemplate.textColor = EditorGUILayout.ColorField("Text Color", newTemplate.textColor);
-        newTemplate.textFont = (Font)EditorGUILayout.ObjectField("Text Font", newTemplate.textFont, typeof(Font), false);
-
+        DisplayUIObjectFields(newTemplate);
         if (GUILayout.Button("Create Template")) CreateTemplate();
     }
 
@@ -89,16 +121,7 @@ public class CustomEditorJson : EditorWindow
 
             if (i == selectedObjectIndex)
             {
-                uiObject.name = EditorGUILayout.TextField("Name", uiObject.name);
-                uiObject.position = EditorGUILayout.Vector2Field("Position", uiObject.position);
-                uiObject.rotation = EditorGUILayout.FloatField("Rotation", uiObject.rotation);
-                uiObject.scale = EditorGUILayout.Vector2Field("Scale", uiObject.scale);
-                uiObject.color = EditorGUILayout.ColorField("Color", uiObject.color);
-                uiObject.texture = (Texture)EditorGUILayout.ObjectField("RawImage Texture", uiObject.texture, typeof(Texture), false);
-                uiObject.rawImageEnabled = EditorGUILayout.Toggle("RawImage Enabled", uiObject.rawImageEnabled);
-                uiObject.text = EditorGUILayout.TextField("Text", uiObject.text);
-                uiObject.textColor = EditorGUILayout.ColorField("Text Color", uiObject.textColor);
-                uiObject.textFont = (Font)EditorGUILayout.ObjectField("Text Font", uiObject.textFont, typeof(Font), false);
+                DisplayUIObjectFields(uiObject);
                 CheckForChanges(uiObject);
             }
 
@@ -107,21 +130,28 @@ public class CustomEditorJson : EditorWindow
         EditorGUILayout.EndScrollView();
     }
 
+    private void DisplayUIObjectFields(UIObject uiObject)
+    {
+        uiObject.name = EditorGUILayout.TextField("Name", uiObject.name);
+        uiObject.position = EditorGUILayout.Vector2Field("Position", uiObject.position);
+        uiObject.rotation = EditorGUILayout.FloatField("Rotation", uiObject.rotation);
+        uiObject.scale = EditorGUILayout.Vector2Field("Scale", uiObject.scale);
+        uiObject.color = EditorGUILayout.ColorField("Color", uiObject.color);
+        uiObject.texture = (Texture)EditorGUILayout.ObjectField("RawImage Texture", uiObject.texture, typeof(Texture), false);
+        uiObject.rawImageEnabled = EditorGUILayout.Toggle("RawImage Enabled", uiObject.rawImageEnabled);
+        uiObject.text = EditorGUILayout.TextField("Text", uiObject.text);
+        uiObject.textColor = EditorGUILayout.ColorField("Text Color", uiObject.textColor);
+        uiObject.textFont = (Font)EditorGUILayout.ObjectField("Text Font", uiObject.textFont, typeof(Font), false);
+    }
+
     private void CheckForChanges(UIObject uiObject)
     {
-        if (uiObject.IsDifferentFrom(newTemplate))
-        {
-            changesMade = true;
-        }
-        else
-        {
-            changesMade = false;
-        }
+        changesMade = !uiObject.IsSameAs(newTemplate);
     }
 
     private void ApplyChanges()
     {
-        if (selectedObjectIndex >= 0 && selectedObjectIndex < objectList.Count)
+        if (IsValidIndex(selectedObjectIndex))
         {
             objectList[selectedObjectIndex] = new UIObject(newTemplate);
             changesMade = false;
@@ -186,19 +216,7 @@ public class CustomEditorJson : EditorWindow
     {
         if (canvas == null)
         {
-            // If there is no canvas, create one
-            canvas = new GameObject("Canvas");
-            canvas.AddComponent<Canvas>().renderMode = RenderMode.ScreenSpaceOverlay;
-            canvas.AddComponent<CanvasScaler>();
-            canvas.AddComponent<GraphicRaycaster>();
-
-            // Optionally, create an EventSystem if it doesn't exist
-            if (FindObjectOfType<EventSystem>() == null)
-            {
-                var eventSystem = new GameObject("EventSystem");
-                eventSystem.AddComponent<EventSystem>();
-                eventSystem.AddComponent<StandaloneInputModule>();
-            }
+            CreateCanvas();
         }
 
         foreach (UIObject uiObject in objectList)
@@ -213,14 +231,19 @@ public class CustomEditorJson : EditorWindow
             {
                 RawImage rawImage = uiObjectPrefab.AddComponent<RawImage>();
                 rawImage.texture = uiObject.texture;
+                rawImage.color = uiObject.color;
             }
 
-            if (!string.IsNullOrEmpty(uiObject.text))
+            if (!string.IsNullOrEmpty(uiObject.text) && !uiObject.rawImageEnabled)
             {
                 Text text = uiObjectPrefab.AddComponent<Text>();
                 text.text = uiObject.text;
                 text.color = uiObject.textColor;
                 text.font = uiObject.textFont;
+            }
+            else
+            {
+                Debug.LogWarning("Image Can't Added To Rawimage");
             }
         }
     }
@@ -237,6 +260,21 @@ public class CustomEditorJson : EditorWindow
             objectList = new List<UIObject>();
             objectList.Add(new UIObject(newTemplate));
             newTemplate = new UIObject();
+        }
+    }
+
+    private void CreateCanvas()
+    {
+        canvas = new GameObject("Canvas");
+        canvas.AddComponent<Canvas>().renderMode = RenderMode.ScreenSpaceOverlay;
+        canvas.AddComponent<CanvasScaler>();
+        canvas.AddComponent<GraphicRaycaster>();
+
+        if (FindObjectOfType<EventSystem>() == null)
+        {
+            var eventSystem = new GameObject("EventSystem");
+            eventSystem.AddComponent<EventSystem>();
+            eventSystem.AddComponent<StandaloneInputModule>();
         }
     }
 }
@@ -271,18 +309,9 @@ public class UIObject
         textFont = other.textFont;
     }
 
-    public bool IsDifferentFrom(UIObject other)
+    public bool IsSameAs(UIObject other)
     {
-        return name != other.name ||
-            position != other.position ||
-            rotation != other.rotation ||
-            scale != other.scale ||
-            color != other.color ||
-            texture != other.texture ||
-            rawImageEnabled != other.rawImageEnabled ||
-            text != other.text ||
-            textColor != other.textColor ||
-            textFont != other.textFont;
+        return name == other.name && position == other.position && rotation == other.rotation && scale == other.scale && color == other.color && texture == other.texture && rawImageEnabled == other.rawImageEnabled && text == other.text && textColor == other.textColor && textFont == other.textFont;
     }
 }
 

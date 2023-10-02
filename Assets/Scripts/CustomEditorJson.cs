@@ -45,7 +45,7 @@ public class CustomEditorJson : EditorWindow
         {
             DeleteJSON();
         }
-        if (GUILayout.Button("Instantiate"))
+        if (GUILayout.Button("Create UI"))
         {
             InstantiateUIObjects();
         }
